@@ -35,19 +35,19 @@ jobs:
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
 
-    - name: Verify ATL Installation
+    - name: Build Solution (Release x64)
       run: |
         $vsPath = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
-        $atlPath = Get-ChildItem -Path "$vsPath\VC\Tools\MSVC\*\atlmfc\include\atlbase.h" -ErrorAction SilentlyContinue
-        if ($atlPath) {
-          echo "atlbase.h found at: $($atlPath.FullName)"
+        $atlHeader = Get-ChildItem -Path "$vsPath\VC\Tools\MSVC\*\atlmfc\include\atlbase.h" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($atlHeader) {
+          $msvcVersion = $atlHeader.Directory.Parent.Parent.Name
+          echo "Found MSVC version with ATL: $msvcVersion"
+          msbuild VMP-Imports-Deobfuscator.sln /p:Configuration=Release /p:Platform=x64 /p:MSVCToolsVersion=$msvcVersion
         } else {
-          echo "atlbase.h NOT found!"
-          Get-ChildItem -Path "$vsPath\VC\Tools\MSVC" | Select-Object -ExpandProperty FullName
+          echo "Error: atlbase.h not found. Attempting default build."
+          msbuild VMP-Imports-Deobfuscator.sln /p:Configuration=Release /p:Platform=x64
         }
 
-    - name: Build Solution (Release x64)
-      run: msbuild VMP-Imports-Deobfuscator.sln /p:Configuration=Release /p:Platform=x64
 
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
