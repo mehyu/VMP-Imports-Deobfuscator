@@ -18,16 +18,33 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v2
+    - name: Cache Visual Studio Installer Packages
+      uses: actions/cache@v4
+      with:
+        path: C:\ProgramData\Microsoft\VisualStudio\Packages
+        key: vs-installer-packages-atl-mfc
 
-    - name: Install ATL Components
+    - name: Install ATL/MFC Components
       run: |
         $vsPath = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
         echo "Found Visual Studio installation path: $vsPath"
         Start-Process -FilePath "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe" `
-          -ArgumentList "modify --installPath ""$vsPath"" --add Microsoft.VisualStudio.Component.VC.ATL --quiet --norestart --nocache" `
+          -ArgumentList "modify --installPath ""$vsPath"" --add Microsoft.VisualStudio.Component.VC.ATL --add Microsoft.VisualStudio.Component.VC.ATLMFC --quiet --norestart" `
           -Wait -NoNewWindow
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Verify ATL Installation
+      run: |
+        $vsPath = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+        $atlPath = Get-ChildItem -Path "$vsPath\VC\Tools\MSVC\*\atlmfc\include\atlbase.h" -ErrorAction SilentlyContinue
+        if ($atlPath) {
+          echo "atlbase.h found at: $($atlPath.FullName)"
+        } else {
+          echo "atlbase.h NOT found!"
+          Get-ChildItem -Path "$vsPath\VC\Tools\MSVC" | Select-Object -ExpandProperty FullName
+        }
 
     - name: Build Solution (Release x64)
       run: msbuild VMP-Imports-Deobfuscator.sln /p:Configuration=Release /p:Platform=x64
