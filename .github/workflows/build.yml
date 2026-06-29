@@ -12,42 +12,17 @@ permissions:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Cache Visual Studio Installer Packages
-      uses: actions/cache@v4
-      with:
-        path: C:\ProgramData\Microsoft\VisualStudio\Packages
-        key: vs-installer-packages-atl-mfc
-
-    - name: Install ATL/MFC Components
-      run: |
-        $vsPath = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
-        echo "Found Visual Studio installation path: $vsPath"
-        Start-Process -FilePath "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe" `
-          -ArgumentList "modify --installPath ""$vsPath"" --add Microsoft.VisualStudio.Component.VC.ATL --add Microsoft.VisualStudio.Component.VC.ATLMFC --quiet --norestart" `
-          -Wait -NoNewWindow
-
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
 
     - name: Build Solution (Release x64)
-      run: |
-        $vsPath = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
-        $atlHeader = Get-ChildItem -Path "$vsPath\VC\Tools\MSVC\*\atlmfc\include\atlbase.h" -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($atlHeader) {
-          $msvcVersion = $atlHeader.Directory.Parent.Parent.Name
-          echo "Found MSVC version with ATL: $msvcVersion"
-          msbuild VMP-Imports-Deobfuscator.sln /p:Configuration=Release /p:Platform=x64 /p:VCToolsVersion=$msvcVersion
-        } else {
-          echo "Error: atlbase.h not found. Attempting default build."
-          msbuild VMP-Imports-Deobfuscator.sln /p:Configuration=Release /p:Platform=x64
-        }
-
+      run: msbuild VMP-Imports-Deobfuscator.sln /p:Configuration=Release /p:Platform=x64
 
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
